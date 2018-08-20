@@ -1,4 +1,16 @@
-create extension pgcrypto;
+drop view if exists player_list;
+drop view if exists team_list;
+
+drop table if exists transfers;
+drop table if exists players;
+drop table if exists teams;
+drop table if exists managers;
+drop table if exists leagues;
+drop table if exists countries;
+
+drop type if exists gender;
+drop function if exists clubHistory(player_id bigint);
+drop type if exists player_transfers;
 
 create type gender as enum ('male', 'female');
 
@@ -15,12 +27,13 @@ create table managers(
 
 create table countries(
   country_id bigserial primary key not null,
-  name varchar(255) not null
+  code varchar(2) not null,
+  country_name varchar(255) not null
 );
 
 create table leagues(
   league_id bigserial primary key not null,
-  name varchar(255) not null,
+  league_name varchar(255) not null,
   rank int,
   country int references countries(country_id)
 );
@@ -43,8 +56,8 @@ create TABLE players(
   injured boolean default false ,
   position varchar(255),
   origin int references countries(country_id),
-  team int references teams(team_id)
-
+  team int references teams(team_id),
+  manager int references managers(user_id)
 );
 
 create table transfers (
@@ -58,8 +71,8 @@ create table transfers (
 
 create view team_list as
 select t.full_name as team_name,
-       l.name as league_name,
-       c.name as country_name
+       l.league_name as league_name,
+       c.country_name as country_name
   from teams t left join leagues l on t.league = l.league_id
   left join countries c on l.country = c.country_id;
 
@@ -72,7 +85,7 @@ select p.first_name,
        p.injured,
        p.position,
        t.short_name as team,
-       c.name as country
+       c.country_name as country
        from players p left join teams t on p.team = t.team_id
   left join countries c on p.origin = c.country_id;
 

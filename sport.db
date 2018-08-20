@@ -1,0 +1,1237 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 10.5
+-- Dumped by pg_dump version 10.5
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: 
+--
+
+CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
+
+
+--
+-- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
+
+
+--
+-- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: 
+--
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
+
+
+--
+-- Name: gender; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.gender AS ENUM (
+    'male',
+    'female'
+);
+
+
+ALTER TYPE public.gender OWNER TO postgres;
+
+--
+-- Name: player_transfers; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.player_transfers AS (
+	tr_date date,
+	old_team bigint,
+	new_team bigint
+);
+
+
+ALTER TYPE public.player_transfers OWNER TO postgres;
+
+--
+-- Name: clubhistory(bigint); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.clubhistory(player_id bigint) RETURNS public.player_transfers
+    LANGUAGE sql
+    AS $_$
+  select transfer_date, old_team, new_team from transfers where player = $1;
+$_$;
+
+
+ALTER FUNCTION public.clubhistory(player_id bigint) OWNER TO postgres;
+
+SET default_tablespace = '';
+
+SET default_with_oids = false;
+
+--
+-- Name: countries; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.countries (
+    country_id bigint NOT NULL,
+    code character varying(2) NOT NULL,
+    country_name character varying(255) NOT NULL
+);
+
+
+ALTER TABLE public.countries OWNER TO postgres;
+
+--
+-- Name: countries_country_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.countries_country_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.countries_country_id_seq OWNER TO postgres;
+
+--
+-- Name: countries_country_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.countries_country_id_seq OWNED BY public.countries.country_id;
+
+
+--
+-- Name: leagues; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.leagues (
+    league_id bigint NOT NULL,
+    league_name character varying(255) NOT NULL,
+    rank integer,
+    country integer
+);
+
+
+ALTER TABLE public.leagues OWNER TO postgres;
+
+--
+-- Name: leagues_league_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.leagues_league_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.leagues_league_id_seq OWNER TO postgres;
+
+--
+-- Name: leagues_league_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.leagues_league_id_seq OWNED BY public.leagues.league_id;
+
+
+--
+-- Name: managers; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.managers (
+    user_id bigint NOT NULL,
+    email character varying(255) NOT NULL,
+    pass_salt character varying(255) NOT NULL,
+    pass_hash character varying(255),
+    first_name character varying(255),
+    last_name character varying(255),
+    created timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.managers OWNER TO postgres;
+
+--
+-- Name: managers_user_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.managers_user_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.managers_user_id_seq OWNER TO postgres;
+
+--
+-- Name: managers_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.managers_user_id_seq OWNED BY public.managers.user_id;
+
+
+--
+-- Name: players; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.players (
+    player_id bigint NOT NULL,
+    last_name character varying(255) NOT NULL,
+    first_name character varying(255),
+    nick_name character varying(255),
+    birth_date date NOT NULL,
+    sex public.gender NOT NULL,
+    injured boolean DEFAULT false,
+    "position" character varying(255),
+    origin integer,
+    team integer,
+    manager integer
+);
+
+
+ALTER TABLE public.players OWNER TO postgres;
+
+--
+-- Name: teams; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.teams (
+    team_id bigint NOT NULL,
+    short_name character varying(7) NOT NULL,
+    full_name character varying(255),
+    league integer
+);
+
+
+ALTER TABLE public.teams OWNER TO postgres;
+
+--
+-- Name: player_list; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.player_list AS
+ SELECT p.first_name,
+    p.nick_name,
+    p.last_name,
+    p.sex,
+    p.birth_date,
+    p.injured,
+    p."position",
+    t.short_name AS team,
+    c.country_name AS country
+   FROM ((public.players p
+     LEFT JOIN public.teams t ON ((p.team = t.team_id)))
+     LEFT JOIN public.countries c ON ((p.origin = c.country_id)));
+
+
+ALTER TABLE public.player_list OWNER TO postgres;
+
+--
+-- Name: players_player_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.players_player_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.players_player_id_seq OWNER TO postgres;
+
+--
+-- Name: players_player_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.players_player_id_seq OWNED BY public.players.player_id;
+
+
+--
+-- Name: team_list; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.team_list AS
+ SELECT t.full_name AS team_name,
+    l.league_name,
+    c.country_name
+   FROM ((public.teams t
+     LEFT JOIN public.leagues l ON ((t.league = l.league_id)))
+     LEFT JOIN public.countries c ON ((l.country = c.country_id)));
+
+
+ALTER TABLE public.team_list OWNER TO postgres;
+
+--
+-- Name: teams_team_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.teams_team_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.teams_team_id_seq OWNER TO postgres;
+
+--
+-- Name: teams_team_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.teams_team_id_seq OWNED BY public.teams.team_id;
+
+
+--
+-- Name: transfers; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.transfers (
+    transfer_id bigint NOT NULL,
+    player bigint,
+    old_team bigint,
+    new_team bigint,
+    transfer_date date NOT NULL
+);
+
+
+ALTER TABLE public.transfers OWNER TO postgres;
+
+--
+-- Name: transfers_transfer_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.transfers_transfer_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.transfers_transfer_id_seq OWNER TO postgres;
+
+--
+-- Name: transfers_transfer_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.transfers_transfer_id_seq OWNED BY public.transfers.transfer_id;
+
+
+--
+-- Name: countries country_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.countries ALTER COLUMN country_id SET DEFAULT nextval('public.countries_country_id_seq'::regclass);
+
+
+--
+-- Name: leagues league_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.leagues ALTER COLUMN league_id SET DEFAULT nextval('public.leagues_league_id_seq'::regclass);
+
+
+--
+-- Name: managers user_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.managers ALTER COLUMN user_id SET DEFAULT nextval('public.managers_user_id_seq'::regclass);
+
+
+--
+-- Name: players player_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.players ALTER COLUMN player_id SET DEFAULT nextval('public.players_player_id_seq'::regclass);
+
+
+--
+-- Name: teams team_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.teams ALTER COLUMN team_id SET DEFAULT nextval('public.teams_team_id_seq'::regclass);
+
+
+--
+-- Name: transfers transfer_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.transfers ALTER COLUMN transfer_id SET DEFAULT nextval('public.transfers_transfer_id_seq'::regclass);
+
+
+--
+-- Data for Name: countries; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.countries (country_id, code, country_name) FROM stdin;
+1	AF	Afghanistan
+2	AL	Albania
+3	DZ	Algeria
+4	DS	American Samoa
+5	AD	Andorra
+6	AO	Angola
+7	AI	Anguilla
+8	AQ	Antarctica
+9	AG	Antigua and Barbuda
+10	AR	Argentina
+11	AM	Armenia
+12	AW	Aruba
+13	AU	Australia
+14	AT	Austria
+15	AZ	Azerbaijan
+16	BS	Bahamas
+17	BH	Bahrain
+18	BD	Bangladesh
+19	BB	Barbados
+20	BY	Belarus
+21	BE	Belgium
+22	BZ	Belize
+23	BJ	Benin
+24	BM	Bermuda
+25	BT	Bhutan
+26	BO	Bolivia
+27	BA	Bosnia and Herzegovina
+28	BW	Botswana
+29	BV	Bouvet Island
+30	BR	Brazil
+31	IO	British Indian Ocean Territory
+32	BN	Brunei Darussalam
+33	BG	Bulgaria
+34	BF	Burkina Faso
+35	BI	Burundi
+36	KH	Cambodia
+37	CM	Cameroon
+38	CA	Canada
+39	CV	Cape Verde
+40	KY	Cayman Islands
+41	CF	Central African Republic
+42	TD	Chad
+43	CL	Chile
+44	CN	China
+45	CX	Christmas Island
+46	CC	Cocos (Keeling) Islands
+47	CO	Colombia
+48	KM	Comoros
+49	CG	Congo
+50	CK	Cook Islands
+51	CR	Costa Rica
+52	HR	Croatia (Hrvatska)
+53	CU	Cuba
+54	CY	Cyprus
+55	CZ	Czech Republic
+56	DK	Denmark
+57	DJ	Djibouti
+58	DM	Dominica
+59	DO	Dominican Republic
+60	TP	East Timor
+61	EC	Ecuador
+62	EG	Egypt
+63	SV	El Salvador
+64	GQ	Equatorial Guinea
+65	ER	Eritrea
+66	EE	Estonia
+67	ET	Ethiopia
+68	FK	Falkland Islands (Malvinas)
+69	FO	Faroe Islands
+70	FJ	Fiji
+71	FI	Finland
+72	FR	France
+73	FX	France, Metropolitan
+74	GF	French Guiana
+75	PF	French Polynesia
+76	TF	French Southern Territories
+77	GA	Gabon
+78	GM	Gambia
+79	GE	Georgia
+80	DE	Germany
+81	GH	Ghana
+82	GI	Gibraltar
+83	GK	Guernsey
+84	GR	Greece
+85	GL	Greenland
+86	GD	Grenada
+87	GP	Guadeloupe
+88	GU	Guam
+89	GT	Guatemala
+90	GN	Guinea
+91	GW	Guinea-Bissau
+92	GY	Guyana
+93	HT	Haiti
+94	HM	Heard and Mc Donald Islands
+95	HN	Honduras
+96	HK	Hong Kong
+97	HU	Hungary
+98	IS	Iceland
+99	IN	India
+100	IM	Isle of Man
+101	ID	Indonesia
+102	IR	Iran (Islamic Republic of)
+103	IQ	Iraq
+104	IE	Ireland
+105	IL	Israel
+106	IT	Italy
+107	CI	Ivory Coast
+108	JE	Jersey
+109	JM	Jamaica
+110	JP	Japan
+111	JO	Jordan
+112	KZ	Kazakhstan
+113	KE	Kenya
+114	KI	Kiribati
+115	KP	Korea, Democratic People's Republic of
+116	KR	Korea, Republic of
+117	XK	Kosovo
+118	KW	Kuwait
+119	KG	Kyrgyzstan
+120	LA	Lao People's Democratic Republic
+121	LV	Latvia
+122	LB	Lebanon
+123	LS	Lesotho
+124	LR	Liberia
+125	LY	Libyan Arab Jamahiriya
+126	LI	Liechtenstein
+127	LT	Lithuania
+128	LU	Luxembourg
+129	MO	Macau
+130	MK	Macedonia
+131	MG	Madagascar
+132	MW	Malawi
+133	MY	Malaysia
+134	MV	Maldives
+135	ML	Mali
+136	MT	Malta
+137	MH	Marshall Islands
+138	MQ	Martinique
+139	MR	Mauritania
+140	MU	Mauritius
+141	TY	Mayotte
+142	MX	Mexico
+143	FM	Micronesia, Federated States of
+144	MD	Moldova, Republic of
+145	MC	Monaco
+146	MN	Mongolia
+147	ME	Montenegro
+148	MS	Montserrat
+149	MA	Morocco
+150	MZ	Mozambique
+151	MM	Myanmar
+152	NA	Namibia
+153	NR	Nauru
+154	NP	Nepal
+155	NL	Netherlands
+156	AN	Netherlands Antilles
+157	NC	New Caledonia
+158	NZ	New Zealand
+159	NI	Nicaragua
+160	NE	Niger
+161	NG	Nigeria
+162	NU	Niue
+163	NF	Norfolk Island
+164	MP	Northern Mariana Islands
+165	NO	Norway
+166	OM	Oman
+167	PK	Pakistan
+168	PW	Palau
+169	PS	Palestine
+170	PA	Panama
+171	PG	Papua New Guinea
+172	PY	Paraguay
+173	PE	Peru
+174	PH	Philippines
+175	PN	Pitcairn
+176	PL	Poland
+177	PT	Portugal
+178	PR	Puerto Rico
+179	QA	Qatar
+180	RE	Reunion
+181	RO	Romania
+182	RU	Russian Federation
+183	RW	Rwanda
+184	KN	Saint Kitts and Nevis
+185	LC	Saint Lucia
+186	VC	Saint Vincent and the Grenadines
+187	WS	Samoa
+188	SM	San Marino
+189	ST	Sao Tome and Principe
+190	SA	Saudi Arabia
+191	SN	Senegal
+192	RS	Serbia
+193	SC	Seychelles
+194	SL	Sierra Leone
+195	SG	Singapore
+196	SK	Slovakia
+197	SI	Slovenia
+198	SB	Solomon Islands
+199	SO	Somalia
+200	ZA	South Africa
+201	GS	South Georgia South Sandwich Islands
+202	SS	South Sudan
+203	ES	Spain
+204	LK	Sri Lanka
+205	SH	St. Helena
+206	PM	St. Pierre and Miquelon
+207	SD	Sudan
+208	SR	Suriname
+209	SJ	Svalbard and Jan Mayen Islands
+210	SZ	Swaziland
+211	SE	Sweden
+212	CH	Switzerland
+213	SY	Syrian Arab Republic
+214	TW	Taiwan
+215	TJ	Tajikistan
+216	TZ	Tanzania, United Republic of
+217	TH	Thailand
+218	TG	Togo
+219	TK	Tokelau
+220	TO	Tonga
+221	TT	Trinidad and Tobago
+222	TN	Tunisia
+223	TR	Turkey
+224	TM	Turkmenistan
+225	TC	Turks and Caicos Islands
+226	TV	Tuvalu
+227	UG	Uganda
+228	UA	Ukraine
+229	AE	United Arab Emirates
+230	GB	United Kingdom
+231	US	United States
+232	UM	United States minor outlying islands
+233	UY	Uruguay
+234	UZ	Uzbekistan
+235	VU	Vanuatu
+236	VA	Vatican City State
+237	VE	Venezuela
+238	VN	Vietnam
+239	VG	Virgin Islands (British)
+240	VI	Virgin Islands (U.S.)
+241	WF	Wallis and Futuna Islands
+242	EH	Western Sahara
+243	YE	Yemen
+244	ZR	Zaire
+245	ZM	Zambia
+246	ZW	Zimbabwe
+\.
+
+
+--
+-- Data for Name: leagues; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.leagues (league_id, league_name, rank, country) FROM stdin;
+1	pretium aliquet, metus	4	42
+2	gravida	4	77
+3	justo.	3	222
+4	egestas hendrerit neque.	3	218
+5	diam at pretium	5	88
+6	Praesent eu	1	204
+7	arcu.	5	62
+8	viverra. Donec tempus,	1	15
+9	Proin velit. Sed	3	192
+10	tellus,	5	114
+11	est ac facilisis	3	73
+12	nisl. Maecenas	5	41
+13	vitae erat vel	2	198
+14	ac ipsum.	4	184
+15	Sed	3	29
+16	Duis	3	177
+17	Nunc pulvinar	4	229
+18	amet, dapibus id,	5	13
+19	pharetra. Nam	5	233
+20	eu	4	184
+21	a, malesuada id,	4	221
+22	risus. Nunc ac	5	178
+23	viverra. Donec	6	83
+24	laoreet lectus	6	89
+25	quis	4	37
+26	vulputate dui,	1	192
+27	nunc est, mollis	2	41
+28	sagittis	1	7
+29	ipsum ac	1	235
+30	molestie in,	4	153
+31	at	3	45
+32	Nulla facilisi. Sed	1	135
+33	enim. Mauris	5	242
+34	nisl elementum purus,	4	47
+35	bibendum	2	13
+36	luctus. Curabitur	1	151
+37	blandit enim	4	178
+38	risus.	6	199
+39	at, nisi.	5	187
+40	Sed nec metus	1	34
+41	vel	2	42
+42	augue ac ipsum.	6	74
+43	ornare, elit	4	82
+44	orci.	5	78
+45	dignissim	6	192
+46	arcu. Aliquam ultrices	4	195
+47	luctus, ipsum	3	210
+48	nibh. Phasellus	1	203
+49	fringilla.	6	93
+50	ac libero	6	32
+51	ut	5	183
+52	fermentum convallis ligula.	6	25
+53	arcu iaculis	3	128
+54	Cras	2	124
+55	pretium	2	237
+56	pretium	4	27
+57	et, commodo	2	84
+58	Aliquam	6	235
+59	sed sem	5	110
+60	et ultrices	2	70
+61	auctor vitae, aliquet	6	203
+62	tempor augue ac	5	244
+63	Mauris eu	5	132
+64	Aenean euismod	6	44
+65	Duis	4	43
+66	enim, condimentum eget,	5	201
+67	nascetur	4	114
+68	Curabitur egestas	4	219
+69	dapibus ligula. Aliquam	6	224
+70	eu	2	111
+71	commodo	6	21
+72	posuere, enim	4	66
+73	Ut sagittis	5	141
+74	sed pede. Cum	1	33
+75	Duis at lacus.	3	34
+76	non, lacinia at,	3	226
+77	felis	4	165
+78	pede nec	6	106
+79	pede.	4	177
+80	aliquam	5	101
+81	massa. Integer	1	4
+82	diam	1	125
+83	risus, at fringilla	6	159
+84	pharetra nibh. Aliquam	4	56
+85	iaculis	5	204
+86	venenatis	3	155
+87	non,	1	33
+88	nonummy ipsum	5	86
+89	rhoncus. Nullam	2	16
+90	Integer	1	6
+91	Nulla	3	165
+92	molestie.	6	43
+93	quam	2	3
+94	Nulla	3	53
+95	pellentesque a, facilisis	5	27
+96	massa.	5	227
+97	augue id	3	193
+98	turpis	4	92
+99	sem. Nulla interdum.	3	138
+100	luctus. Curabitur	5	26
+\.
+
+
+--
+-- Data for Name: managers; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.managers (user_id, email, pass_salt, pass_hash, first_name, last_name, created) FROM stdin;
+\.
+
+
+--
+-- Data for Name: players; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.players (player_id, last_name, first_name, nick_name, birth_date, sex, injured, "position", origin, team, manager) FROM stdin;
+\.
+
+
+--
+-- Data for Name: teams; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.teams (team_id, short_name, full_name, league) FROM stdin;
+1	Bifrorw	In Tincidunt Congue LLP	56
+2	Qubyiig	Magna Corporation	56
+3	Vekuedt	Libero At Corp.	90
+4	Rummiph	Orci Limited	45
+5	Eowredg	Blandit Viverra Donec Consulting	39
+6	Yirdosi	Donec Consulting	55
+7	Yaeyece	Vitae Corp.	15
+8	Yipfiwz	Sagittis Duis Gravida Institute	11
+9	Oarvuah	Praesent Interdum Limited	62
+10	Ioxriuh	Elit Elit Fermentum LLP	33
+11	Yaonobm	Convallis Ante Lectus PC	87
+12	Bagcohd	Sodales At Limited	28
+13	Hooauhu	Etiam Company	28
+14	Geanadc	Lorem Vehicula Et Institute	8
+15	Mueniyx	Duis Dignissim Tempor Incorporated	55
+16	Quudowy	Rhoncus Proin Institute	58
+17	Fexlugx	At Sem Consulting	39
+18	Eojrulk	Eu Institute	99
+19	Wibcowz	Dolor Dolor Tempus Consulting	85
+20	Baciagw	Neque Vitae LLC	62
+21	Aejwajq	Justo Sit Amet Ltd	46
+22	Coutilc	Est Tempor Bibendum Incorporated	3
+23	Aahmezp	Odio Tristique Pharetra Corporation	23
+24	Solxobb	Elit Pharetra Limited	64
+25	Heyxieu	Vivamus Rhoncus Donec Foundation	24
+26	Yujyuiu	Enim Non Nisi Corp.	76
+27	Masyubr	Maecenas Mi Incorporated	43
+28	Yufriuh	Cras Ltd	1
+29	Oodrisj	Fusce Mi Institute	17
+30	Gotrekc	Eu Tellus Institute	59
+31	Ruldohn	At Auctor Ullamcorper PC	68
+32	Wojduzc	In Condimentum Company	25
+33	Yajeeys	Quisque Foundation	39
+34	Fenbatu	Augue Consulting	93
+35	Lucvobq	Iaculis Quis Corp.	60
+36	Youfevk	In Molestie Tortor Institute	47
+37	Pusmooa	Fusce Mi Lorem Limited	34
+38	Ioooaks	Molestie Orci Corp.	31
+39	Hahluto	Eu Placerat Corporation	55
+40	Sieqesc	Tellus Aenean Corporation	52
+41	Iouguiv	Scelerisque Scelerisque Dui LLP	22
+42	Iokiory	Massa Vestibulum Accumsan Company	57
+43	Oidrujn	Cum Sociis Natoque PC	39
+44	Wolcojh	Ultricies Limited	24
+45	Eobjifd	Justo Faucibus Associates	8
+46	Xoxnikh	Ut Dolor LLC	78
+47	Puluaie	Non Arcu Inc.	51
+48	Kikjakz	Fermentum Metus Aenean Ltd	4
+49	Geapajk	Luctus Ipsum Leo Corp.	78
+50	Culialg	Turpis LLP	42
+51	Tulgeid	Lectus Company	95
+52	Aehpuoe	Sit Amet Incorporated	42
+53	Ruogosv	Nibh Corporation	6
+54	Zoyuotw	Neque LLP	44
+55	Woeiagc	Lacinia Orci Corporation	10
+56	Bewjuef	Magna Suspendisse Tristique Limited	62
+57	Leboijj	Praesent Eu Nulla LLP	90
+58	Mijvibe	Tempor Est Ac Institute	35
+59	Xoufoie	Cursus Purus LLP	45
+60	Nibuedu	Convallis Ligula Institute	55
+61	Laeceqw	Cras Sed Foundation	8
+62	Fuiwotn	Ac Arcu Consulting	10
+63	Vaujach	Nulla Interdum PC	32
+64	Nupqeip	Egestas Hendrerit Neque Company	91
+65	Xozeils	Ut Cursus Luctus Foundation	21
+66	Damoemu	Facilisis Suspendisse Commodo Corporation	62
+67	Logeigz	Ut Aliquam Iaculis LLP	42
+68	Dobqoec	Consectetuer Rhoncus Nullam Limited	11
+69	Divbeok	A Felis Incorporated	70
+70	Jughuub	Eu Foundation	50
+71	Suhwozt	A Malesuada Limited	76
+72	Geroilf	Curabitur Vel Industries	37
+73	Nidlanm	Massa LLC	55
+74	Xaszozt	Facilisis Eget PC	96
+75	Saneumd	Ac Institute	32
+76	Vuaaijl	Mauris Incorporated	22
+77	Zufmugh	Ut Eros Non Consulting	20
+78	Geooinj	Per Conubia Foundation	19
+79	Zesbuos	Auctor Velit Industries	2
+80	Zakaarl	Eget Institute	10
+81	Mapbetm	Fermentum Limited	8
+82	Humbupp	In Felis Nulla Corp.	25
+83	Iiaqawj	Interdum Curabitur Dictum Consulting	99
+84	Jeliake	Cursus Et Eros Ltd	78
+85	Iuxoekm	Lectus Cum Limited	86
+86	Aawiiir	Aliquam Inc.	37
+87	Ioteufm	Dolor Nulla Corporation	97
+88	Sajaatm	Interdum Libero Dui Associates	81
+89	Pilgugl	Sociis Natoque PC	98
+90	Hizkeds	Tempus Scelerisque LLC	51
+91	Pixgipk	Elit Etiam Laoreet Institute	1
+92	Qetzulw	Cras Vehicula Corporation	10
+93	Buwpegh	Leo Cras Company	43
+94	Hebzifr	Leo Morbi LLP	70
+95	Xoliisp	Mauris Suspendisse Company	74
+96	Papiugd	Egestas A Institute	12
+97	Mirxiaj	Odio Sagittis Foundation	52
+98	Dalbanv	Eu Odio Tristique LLC	51
+99	Petzupr	Sed LLP	88
+100	Jeqfody	Erat Vivamus Nisi Corporation	91
+101	Oekuopt	Laoreet Ipsum Foundation	62
+102	Wujdefl	Ultricies Adipiscing Foundation	1
+103	Gotkerl	Duis LLC	36
+104	Ruphaas	Donec Limited	100
+105	Rojqevo	Mi Eleifend LLC	27
+106	Uarpipz	Ac Consulting	16
+107	Oefioex	Velit Pellentesque Corporation	45
+108	Vuhkedg	Dolor Egestas Rhoncus Consulting	16
+109	Rudyapo	Eu Ligula Aenean Consulting	60
+110	Hikkagm	Ac Arcu Nunc Corp.	89
+111	Qesloby	Est Mauris Rhoncus LLC	62
+112	Iufxozr	Lobortis PC	27
+113	Eazcach	Lorem Luctus Ut Industries	13
+114	Tuohilg	Et Rutrum Eu Foundation	61
+115	Jigkebj	Dolor Tempus Consulting	4
+116	Vitoovg	Cras Vehicula Aliquet Ltd	4
+117	Dabaowu	Turpis Foundation	36
+118	Lebaihx	Netus Et Malesuada Limited	4
+119	Iiheack	Nec Tempus Scelerisque Incorporated	98
+120	Carluco	Donec Felis Orci Corp.	96
+121	Neyciqc	Eu Institute	24
+122	Yoesohv	Lorem Ut Aliquam Limited	83
+123	Oijuunm	Ut PC	63
+124	Uuqauhd	Odio Auctor Vitae Limited	67
+125	Iixiojm	Ante Limited	89
+126	Fuibazi	Adipiscing Elit Industries	88
+127	Zudoepp	A Ultricies Associates	74
+128	Jotoucg	Blandit Congue In Consulting	80
+129	Kaivowv	Ipsum Phasellus Vitae Incorporated	17
+130	Aimbixy	Quisque Tincidunt Pede Ltd	77
+131	Ruauuxd	Cursus Non Egestas Corp.	54
+132	Iaifaft	Semper Rutrum Inc.	1
+133	Pokduqx	Ante Ipsum Primis Ltd	84
+134	Haumukp	Imperdiet Ullamcorper PC	98
+135	Fajnomx	Malesuada Augue Limited	29
+136	Aanbirn	Augue Id Foundation	66
+137	Qezpibq	Id Limited	91
+138	Vodtojl	Lorem Consulting	11
+139	Nuhkicu	Ad Litora Torquent Foundation	40
+140	Gaufatg	Sed Eu Inc.	37
+141	Vojnikd	At Ltd	95
+142	Zutxukn	Vivamus Rhoncus Donec PC	76
+143	Uuugasl	Pharetra Nibh Aliquam Ltd	31
+144	Gojceuz	Magnis Dis Ltd	75
+145	Yahbajj	Id LLC	63
+146	Aueoafg	Semper Dui Limited	72
+147	Fanroib	Sagittis Nullam Corporation	73
+148	Sekfiqd	Enim Associates	79
+149	Wizwiww	Donec Consectetuer Institute	2
+150	Cesjozr	Vitae Inc.	43
+151	Veemuxb	Nibh Enim Gravida Limited	35
+152	Tubaogj	Ante LLP	68
+153	Heysiwe	Lobortis Limited	60
+154	Faxoeel	Nullam Foundation	78
+155	Teiqugj	Ipsum Non Arcu Consulting	88
+156	Siosikr	Non Egestas LLP	10
+157	Rurvawp	Lorem Inc.	41
+158	Xaytabs	Aliquam Company	61
+159	Ieofemq	Dapibus Quam Quis Incorporated	97
+160	Mikiiim	Phasellus Institute	74
+161	Qaotubf	Nullam Enim Sed LLP	84
+162	Kouhisr	Lacus Aliquam Inc.	92
+163	Sinbeuh	Cum Corp.	26
+164	Zictudo	Accumsan Neque Corp.	70
+165	Oepyuzs	Ultrices Duis Volutpat LLP	18
+166	Sauaies	Arcu PC	9
+167	Mejcoiv	Leo Ltd	52
+168	Vuqcedn	Vel Vulputate Eu Industries	30
+169	Nuibopz	Adipiscing Foundation	72
+170	Xuueupv	Bibendum Sed Est Corp.	27
+171	Zoltitf	Aliquet Limited	27
+172	Kegnito	Arcu LLC	17
+173	Seffelb	Blandit PC	74
+174	Oomluii	Eleifend Inc.	99
+175	Tokeiyg	Eu Eros Nam PC	46
+176	Eabqicb	Orci Adipiscing Institute	15
+177	Peazoub	Cursus LLP	95
+178	Eieeiqc	Consectetuer Euismod Est Incorporated	95
+179	Hoehaul	Nonummy Ultricies Company	31
+180	Zakjezj	Neque Inc.	60
+181	Fiqpeve	Vel Turpis Aliquam PC	99
+182	Hulviaf	Duis At Lacus Associates	41
+183	Xooxedh	Sodales At Velit Institute	37
+184	Euwxauu	Etiam Institute	59
+185	Zazdetj	Donec Feugiat Industries	51
+186	Dupdewk	Risus Duis A Corp.	71
+187	Uuwkirb	Sed Auctor Industries	16
+188	Oodaiyl	Lacus Aliquam Rutrum PC	61
+189	Loxoizr	Ut Company	72
+190	Muxuepu	Aliquam Nisl Nulla Corporation	26
+191	Yemrauj	Enim Inc.	24
+192	Xirvukh	Fusce Industries	16
+193	Mageunq	Lectus Cum Sociis Inc.	77
+194	Uehcimp	Sagittis Placerat Cras Industries	85
+195	Begzozb	Augue LLP	24
+196	Wuereao	Donec Vitae Company	56
+197	Cooiayf	Turpis Inc.	94
+198	Gecduvr	Lacus Aliquam Rutrum LLP	25
+199	Tuihohf	Neque PC	17
+200	Eihiift	Felis Nulla LLP	82
+201	Tauvofc	Rhoncus Id Corporation	75
+202	Gewzauj	Faucibus Morbi Vehicula Incorporated	15
+203	Iukveyg	Tortor Nibh Sit LLP	3
+204	Qehkase	Eu Ultrices Incorporated	26
+205	Xeufeei	Ullamcorper Viverra Maecenas LLC	90
+206	Cekhomb	Velit Cras LLC	4
+207	Jappady	Quisque LLP	58
+208	Cuumodh	Neque Institute	93
+209	Jawrois	Non Lobortis Ltd	31
+210	Lioruep	Adipiscing Lacus Ut Company	72
+211	Cuklips	Purus Inc.	47
+212	Dusxajl	Malesuada Company	82
+213	Sijmolc	Consequat Dolor Vitae LLP	68
+214	Yokkoxg	Nulla LLC	46
+215	Zaxzakv	Elit Erat Corp.	89
+216	Fapgokr	Nec Urna LLC	55
+217	Riohipx	Vel Corporation	78
+218	Caubeqg	Placerat PC	2
+219	Yuvyiso	Mi Enim LLC	27
+220	Xudzipa	Velit Industries	88
+221	Vougaxu	At Velit Incorporated	16
+222	Duoxizb	Ac Company	27
+223	Cazuooj	Sit Amet Associates	41
+224	Cevcazo	In Sodales Corporation	17
+225	Poccoqa	Risus Quisque LLC	65
+226	Deaaebb	Aliquet Magna Company	53
+227	Buqoakd	A Tortor Nunc Company	51
+228	Moxzugf	Nec Tellus Nunc Foundation	15
+229	Yulfimp	Sed Turpis Nec Corporation	95
+230	Qibqomf	Vitae Diam Proin Corporation	50
+231	Civwins	Sit Ltd	86
+232	Beddevw	Nisl LLP	46
+233	Iopcusj	Dignissim Pharetra Nam Limited	8
+234	Yihioon	Elit LLP	18
+235	Wuacilw	Non Egestas A Limited	36
+236	Vizgiax	Fusce Feugiat Lorem Foundation	78
+237	Pucjofo	Sed Molestie LLP	35
+238	Cupcuiw	Eros Associates	28
+239	Oiscetz	Adipiscing Lobortis Risus Corp.	62
+240	Beggivv	Volutpat Nunc Sit Institute	89
+241	Huxkefx	Urna Nunc Quis PC	47
+242	Puseewu	Hendrerit Consectetuer Industries	56
+243	Jupqegv	At Libero Morbi Consulting	42
+244	Xieaehk	Erat Institute	82
+245	Iifseon	Auctor Quis Ltd	71
+246	Jawkeya	Lorem Ipsum Dolor Corp.	80
+247	Dahoefs	Etiam Laoreet LLC	63
+248	Auhneur	Consectetuer Rhoncus Consulting	56
+249	Yetkelc	Erat Vivamus Nisi Consulting	82
+250	Aaufalp	Ante Inc.	21
+251	Qeamumq	Vestibulum Nec LLP	80
+252	Bikmohy	Tellus Incorporated	16
+253	Gahaarg	Orci Tincidunt Adipiscing Associates	27
+254	Kehdojf	A Ltd	74
+255	Baqbidt	Orci Ut Corp.	14
+256	Wovzuwu	Augue Ut Corp.	75
+257	Muskifx	Aliquet Corp.	46
+258	Vuipemy	Dolor Fusce Incorporated	64
+259	Rosbuct	Nulla Company	41
+260	Wimrovb	Molestie Pharetra Nibh Corp.	90
+261	Oulyoff	Nunc Ullamcorper Inc.	30
+262	Lixtuqn	Integer Limited	9
+263	Tifkuaf	Id Corporation	37
+264	Auzfone	Malesuada PC	43
+265	Zamcuar	Curabitur Egestas Nunc Consulting	45
+266	Tedtovr	Non Ltd	20
+267	Iihqotp	Consequat Dolor Vitae Institute	32
+268	Weobohd	Est Incorporated	13
+269	Hojkeoe	Eu PC	36
+270	Zecaakx	Posuere Cubilia Curae; Institute	45
+271	Mueaotg	Adipiscing Industries	83
+272	Zebluiw	Nunc Corp.	18
+273	Yubsudg	Nec Consulting	89
+274	Bavzacr	Blandit Congue In LLC	40
+275	Bamiict	Luctus Ltd	100
+276	Kijbemw	Nec PC	84
+277	Mokmayq	Risus Corp.	53
+278	Diwnehv	Cras Foundation	78
+279	Eolwejp	Non Enim Mauris LLC	4
+280	Eofrufv	Donec Tempor Est Institute	22
+281	Negxivp	Quisque Industries	8
+282	Aairiym	Ut Erat Industries	13
+283	Xueviwe	Sed Molestie Inc.	10
+284	Kopserm	Pellentesque Corp.	12
+285	Cityarj	Quis Diam Luctus LLP	47
+286	Xebpack	Ligula Tortor Inc.	85
+287	Xokmulo	Dapibus LLC	47
+288	Oixviau	Eu Eleifend Nec Limited	51
+289	Voheejv	Odio Sagittis Semper Associates	48
+290	Corpemo	Senectus Et Company	24
+291	Joebulx	Laoreet Foundation	79
+292	Aixaioe	Dapibus Rutrum Inc.	36
+293	Numiicy	Libero Associates	64
+294	Xizdoeu	Mollis LLC	75
+295	Ciaiakv	Semper Industries	87
+296	Ienfohb	Eu Tellus Phasellus Institute	14
+297	Lesqiof	Fringilla Donec Feugiat Ltd	82
+298	Fotheln	Nulla Eget Inc.	22
+299	Aecdaoj	Blandit Corp.	61
+300	Cazwomm	Massa LLC	30
+\.
+
+
+--
+-- Data for Name: transfers; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.transfers (transfer_id, player, old_team, new_team, transfer_date) FROM stdin;
+\.
+
+
+--
+-- Name: countries_country_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.countries_country_id_seq', 246, true);
+
+
+--
+-- Name: leagues_league_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.leagues_league_id_seq', 100, true);
+
+
+--
+-- Name: managers_user_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.managers_user_id_seq', 1, false);
+
+
+--
+-- Name: players_player_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.players_player_id_seq', 2, true);
+
+
+--
+-- Name: teams_team_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.teams_team_id_seq', 300, true);
+
+
+--
+-- Name: transfers_transfer_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.transfers_transfer_id_seq', 1, false);
+
+
+--
+-- Name: countries countries_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.countries
+    ADD CONSTRAINT countries_pkey PRIMARY KEY (country_id);
+
+
+--
+-- Name: leagues leagues_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.leagues
+    ADD CONSTRAINT leagues_pkey PRIMARY KEY (league_id);
+
+
+--
+-- Name: managers managers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.managers
+    ADD CONSTRAINT managers_pkey PRIMARY KEY (user_id);
+
+
+--
+-- Name: players players_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.players
+    ADD CONSTRAINT players_pkey PRIMARY KEY (player_id);
+
+
+--
+-- Name: teams teams_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.teams
+    ADD CONSTRAINT teams_pkey PRIMARY KEY (team_id);
+
+
+--
+-- Name: transfers transfers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.transfers
+    ADD CONSTRAINT transfers_pkey PRIMARY KEY (transfer_id);
+
+
+--
+-- Name: leagues leagues_country_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.leagues
+    ADD CONSTRAINT leagues_country_fkey FOREIGN KEY (country) REFERENCES public.countries(country_id);
+
+
+--
+-- Name: players players_manager_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.players
+    ADD CONSTRAINT players_manager_fkey FOREIGN KEY (manager) REFERENCES public.managers(user_id);
+
+
+--
+-- Name: players players_origin_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.players
+    ADD CONSTRAINT players_origin_fkey FOREIGN KEY (origin) REFERENCES public.countries(country_id);
+
+
+--
+-- Name: players players_team_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.players
+    ADD CONSTRAINT players_team_fkey FOREIGN KEY (team) REFERENCES public.teams(team_id);
+
+
+--
+-- Name: teams teams_league_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.teams
+    ADD CONSTRAINT teams_league_fkey FOREIGN KEY (league) REFERENCES public.leagues(league_id);
+
+
+--
+-- Name: transfers transfers_new_team_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.transfers
+    ADD CONSTRAINT transfers_new_team_fkey FOREIGN KEY (new_team) REFERENCES public.teams(team_id);
+
+
+--
+-- Name: transfers transfers_old_team_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.transfers
+    ADD CONSTRAINT transfers_old_team_fkey FOREIGN KEY (old_team) REFERENCES public.teams(team_id);
+
+
+--
+-- Name: transfers transfers_player_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.transfers
+    ADD CONSTRAINT transfers_player_fkey FOREIGN KEY (player) REFERENCES public.players(player_id);
+
+
+--
+-- PostgreSQL database dump complete
+--
+
