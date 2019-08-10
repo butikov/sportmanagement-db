@@ -46,7 +46,7 @@ create table teams(
 
 );
 
-create TABLE players(
+create table players(
   player_id bigserial primary key not null ,
   last_name varchar(255) not null ,
   first_name varchar(255),
@@ -100,3 +100,5 @@ create or replace function clubHistory(player_id bigint)
   returns player_transfers as $$
   select transfer_date, old_team, new_team from transfers where player = $1;
 $$ LANGUAGE SQL;
+
+select clubHistory(2)
